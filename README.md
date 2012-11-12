@@ -45,6 +45,14 @@ example:
 
 In the example above, the *address* object will preserve *address*, *city*, and *state* if the person has an *ageClass* of *adult*.  If *ageClass* is *child* then only *city* and *state* are preserved.  (Note: if *ageClass* is any other value, such as *senior*, it will be dropped.)
 
+Although it is best to always explicitly include members of an object, it is possible to include all members and their children.
+
+example:
+
+    {
+     "!_include_all_children": True
+    }
+
 #to do
 
 1. basic code review (this is really rough at this point)

@@ -120,38 +120,51 @@ def compound_key_matcher(filter_key, key, input):
 
 # applies the filter to a given input. set debug True for verbose output
 def strip(input, filters, debug = False):
-	value_keys = []
-	object_keys = []
-	for key in input.keys():
-		if input[key].__class__ == type({}) or input[key].__class__ == type([]):
-			object_keys.append(key)
-		else:
-			value_keys.append(key)
-	for key in object_keys:
-		# find object filter to apply
-		object_filter_keys = filter(lambda filter_key: compound_key_matcher(filter_key, key, input), filters.keys())
-		if len(object_filter_keys) != 1:
-			# nested dictionaries and arrays require filters
-			if not debug:
-				input.pop(key)				
-		else:
-			if input[key].__class__ == type({}):
-				# handle as a nested dictionary
-				strip(input[key], filters[object_filter_keys[0]], debug)
+	if filters.has_key('!_allow_all'):
+		# debug logic
+		if debug:
+			for key in input.keys():
+				if input[key].__class__ == type({}):
+					# handle as a nested dictionary
+					strip(input[key], filters, debug)
+				elif input[key].__class__ == type([]):
+					# handle as a nested array
+					map(lambda x: strip(x, filters, debug), input[key])							
+				input[key.upper()] = input[key]
+				input.pop(key)
+	else:
+		value_keys = []
+		object_keys = []
+		for key in input.keys():
+			if input[key].__class__ == type({}) or input[key].__class__ == type([]):
+				object_keys.append(key)
 			else:
-				# handle as a nested array
-				map(lambda x: strip(x, filters[object_filter_keys[0]], debug), input[key])				
-			# debug logic
-			if debug:
-				input[key.upper()] = input[key]
-				input.pop(key)			
-	for key in value_keys:
-		if not key in filters['attributes']:
-			# remove attributes not explicitly allowed
-			if not debug:
-				input.pop(key)			
-		else:
-			# debug logic
-			if debug:
-				input[key.upper()] = input[key]
-				input.pop(key)	
+				value_keys.append(key)
+		for key in object_keys:
+			# find object filter to apply
+			object_filter_keys = filter(lambda filter_key: compound_key_matcher(filter_key, key, input), filters.keys())
+			if len(object_filter_keys) != 1:
+				# nested dictionaries and arrays require filters
+				if not debug:
+					input.pop(key)				
+			else:
+				if input[key].__class__ == type({}):
+					# handle as a nested dictionary
+					strip(input[key], filters[object_filter_keys[0]], debug)
+				else:
+					# handle as a nested array
+					map(lambda x: strip(x, filters[object_filter_keys[0]], debug), input[key])				
+				# debug logic
+				if debug:
+					input[key.upper()] = input[key]
+					input.pop(key)			
+		for key in value_keys:
+			if not key in filters['attributes']:
+				# remove attributes not explicitly allowed
+				if not debug:
+					input.pop(key)			
+			else:
+				# debug logic
+				if debug:
+					input[key.upper()] = input[key]
+					input.pop(key)	
