@@ -50,7 +50,7 @@ Although it is best to always explicitly include members of an object, it is pos
 example:
 
     {
-     "!_include_all_children": True
+     "!_include_all_children": true
     }
 
 #to do

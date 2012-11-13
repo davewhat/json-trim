@@ -14,25 +14,31 @@ FILTERS = [
 ]
 
 class Proxy(BaseHTTPServer.BaseHTTPRequestHandler):
-	def do_GET(self, mode='GET'):
-		print("path: " + self.path)
+
+	def do_GET(self, mode='GET', post_data = None):
 		conn = httplib.HTTPSConnection('api.foursquare.com')
-		conn.request(mode, self.path)
+		req_headers = {}
+		if mode=='POST':
+			req_headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+		conn.request(mode, self.path, post_data, req_headers)
 		resp = conn.getresponse().read()
 		for filter_pair in FILTERS:
 			if self.path.find(filter_pair[0]) != -1:
 				print("applying " + filter_pair[1])
 				f = open(filter_pair[1], 'r')
-				z = re.sub('\t', '', re.sub('\n','',f.read()))
-				filter = json.loads(z)
+				filter = json.loads(re.sub('\t', '', re.sub('\n','',f.read())))
 				resp_json = json.loads(resp)				
-				strip(resp_json, filter, True)
+				strip(resp_json, filter, self.debug_mode)
 				resp = json.dumps(resp_json)		
+		self.protocol_version = 'HTTP/1.1'
+		self.send_response(200)
+		self.send_header('Content-Length', str(len(resp) + 1))
+		self.wfile.write('\n\n')
 		self.wfile.write( resp )
 		
 	def do_POST(self):
-		self.do_GET('POST')
-
+		post_data = self.rfile.read(int(self.headers['Content-Length']))
+		self.do_GET('POST', post_data)
 
 httpd = SocketServer.ForkingTCPServer(('', PORT), Proxy)
 print 'serving at port', PORT
