@@ -4,6 +4,7 @@ import urllib
 import httplib
 import json
 import re
+import thread
 
 from trim import *
 
@@ -40,6 +41,19 @@ class Proxy(BaseHTTPServer.BaseHTTPRequestHandler):
 		post_data = self.rfile.read(int(self.headers['Content-Length']))
 		self.do_GET('POST', post_data)
 
-httpd = SocketServer.ForkingTCPServer(('', PORT), Proxy)
+class DebugProxy(Proxy):
+	debug_mode = True
+
+class RegularProxy(Proxy):
+	debug_mode = False
+
+
+httpd = SocketServer.ForkingTCPServer(('', PORT), RegularProxy)
+httpd_d = SocketServer.ForkingTCPServer(('', PORT+1), DebugProxy)
+
 print 'serving at port', PORT
-httpd.serve_forever()
+print '(debug at port', str(PORT+1) + ')'
+
+thread.start_new_thread(httpd.serve_forever, ())
+httpd_d.serve_forever()
+
