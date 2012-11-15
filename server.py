@@ -5,16 +5,23 @@ import httplib
 import json
 import re
 import thread
+import urlparse
 
 from trim import *
 
 PORT = 8080
 
 FILTERS = [
-("/activities/recent", "filter_activities_recent.json")
+("/v2/activities/recent", "filter_activities_recent.json")
 ]
 
 class Proxy(BaseHTTPServer.BaseHTTPRequestHandler):
+
+	def performFiltering(self, filter_file_name, dictionary):
+		print("applying " + filter_file_name)
+		f = open(filter_file_name, 'r')
+		filter = json.loads(re.sub('\t', '', re.sub('\n','',f.read())))
+		strip(dictionary, filter, self.debug_mode)
 
 	def do_GET(self, mode='GET', post_data = None):
 		conn = httplib.HTTPSConnection('api.foursquare.com')
@@ -22,15 +29,25 @@ class Proxy(BaseHTTPServer.BaseHTTPRequestHandler):
 		if mode=='POST':
 			req_headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 		conn.request(mode, self.path, post_data, req_headers)
-		resp = conn.getresponse().read()
+		resp = conn.getresponse().read()	
+		# given request path, look for filters to apply
+		url_parsed = urlparse.urlparse(self.path)
 		for filter_pair in FILTERS:
-			if self.path.find(filter_pair[0]) != -1:
-				print("applying " + filter_pair[1])
-				f = open(filter_pair[1], 'r')
-				filter = json.loads(re.sub('\t', '', re.sub('\n','',f.read())))
-				resp_json = json.loads(resp)				
-				strip(resp_json, filter, self.debug_mode)
-				resp = json.dumps(resp_json)		
+			# handle an exact match
+			if url_parsed.path == filter_pair[0]:
+				resp_dictionary = json.loads(resp)				
+				self.performFiltering(filter_pair[1], resp_dictionary)
+				resp = json.dumps(resp_dictionary)
+			# handle /multi endpoint
+			if url_parsed.path.find("/multi") != -1:
+				url_prepend = url_parsed.path[:url_parsed.path.find("/multi")]
+				# check each of the parallel requests for a match
+				urlparse.parse_qs(url_parsed.query)['requests']
+				for (c, r) in enumerate(urlparse.parse_qs(url_parsed.query)['requests'][0].split(',')):
+					if url_prepend + urlparse.urlparse(r).path == filter_pair[0]:
+						resp_dictionary = json.loads(resp)
+						self.performFiltering(filter_pair[1], resp_dictionary['response']['responses'][c])
+						resp = json.dumps(resp_dictionary)
 		self.protocol_version = 'HTTP/1.1'
 		self.send_response(200)
 		self.send_header('Content-Length', str(len(resp) + 1))
