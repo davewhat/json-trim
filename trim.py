@@ -120,10 +120,39 @@ def compound_key_matcher(filter_key, key, input):
 
 # applies the filter to a given input. set debug True for verbose output
 def strip(input, filters, debug = False):
+	# separate value keys from object keys
+	value_keys = []
+	object_keys = []
+	for key in input.keys():
+		if input[key].__class__ == type({}):
+			object_keys.append(key)
+		elif input[key].__class__ == type([]):
+			# could be an array of values, which we treat as a value
+			if len(input[key]) > 0:
+				# test the first element
+				if input[key][0].__class__ == type({}):
+					object_keys.append(key)
+				elif input[key][0].__class__ == type([]):
+					# is it a nested array of values or objects? we guess.
+					print("warning: arrays of arrays are treated as objects.")
+					object_keys.append(key)
+				else:
+					value_keys.append(key)
+			else:
+				# no elements to test, fall back to the filter rules
+				object_filter_keys = filter(lambda filter_key: compound_key_matcher(filter_key, key, input), filters.keys())
+				if object_filter_keys > 0:
+					object_keys.append(key)
+				else:
+					value_keys.append(key)
+		else:
+			value_keys.append(key)
+
+
 	if filters.has_key('!_allow_all'):
 		# debug logic
 		if debug:
-			for key in input.keys():
+			for key in object_keys:
 				if input[key].__class__ == type({}):
 					# handle as a nested dictionary
 					strip(input[key], filters, debug)
@@ -132,14 +161,10 @@ def strip(input, filters, debug = False):
 					map(lambda x: strip(x, filters, debug), input[key])							
 				input[key.upper()] = input[key]
 				input.pop(key)
+			for key in value_keys:
+				input[key.upper()] = input[key]
+				input.pop(key)
 	else:
-		value_keys = []
-		object_keys = []
-		for key in input.keys():
-			if input[key].__class__ == type({}) or input[key].__class__ == type([]):
-				object_keys.append(key)
-			else:
-				value_keys.append(key)
 		for key in object_keys:
 			# find object filter to apply
 			object_filter_keys = filter(lambda filter_key: compound_key_matcher(filter_key, key, input), filters.keys())
