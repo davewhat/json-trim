@@ -20,7 +20,7 @@ class Proxy(BaseHTTPServer.BaseHTTPRequestHandler):
 	def performFiltering(self, filter_file_name, dictionary):
 		print("applying " + filter_file_name)
 		f = open(filter_file_name, 'r')
-		filter = json.loads(re.sub('\t', '', re.sub('\n','',f.read())))
+		filter = json.loads(re.sub('\t', '', f.read()))
 		strip(dictionary, filter, self.debug_mode)
 
 	def do_GET(self, mode='GET', post_data = None):
