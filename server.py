@@ -29,7 +29,8 @@ class Proxy(BaseHTTPServer.BaseHTTPRequestHandler):
 		if mode=='POST':
 			req_headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 		conn.request(mode, self.path, post_data, req_headers)
-		resp = conn.getresponse().read()	
+		response_object = conn.getresponse()
+		resp = response_object.read()
 		# given request path, look for filters to apply
 		url_parsed = urlparse.urlparse(self.path)
 		for filter_pair in FILTERS:
@@ -51,6 +52,9 @@ class Proxy(BaseHTTPServer.BaseHTTPRequestHandler):
 		self.protocol_version = 'HTTP/1.1'
 		self.send_response(200)
 		self.send_header('Content-Length', str(len(resp) + 1))
+		for (header, value) in response_object.getheaders():
+			if not header.lower() in ['content-length', 'server', 'date']:
+				self.send_header(header, value)
 		self.wfile.write('\n\n')
 		self.wfile.write( resp )
 		
